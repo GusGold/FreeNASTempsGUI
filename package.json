@@ -1,0 +1,23 @@
+{
+  "name": "FreeNASTempsGUI",
+  "version": "1.0.0",
+  "description": "Updates FreeNAS generated nginx.conf for temperature alias",
+  "main": "index.js",
+  "scripts": {
+    "run": "node index.js"
+  },
+  "author": "Angus Goldman <me@angusgoldman.com>",
+  "license": "MIT",
+  "dependencies": {
+    "command-line-args": "^4.0.7",
+    "nginx-conf": "^1.3.1"
+  },
+  "bugs":{
+    "url": "https://github.com/GusGold/FreeNASTempsGUI/issues"
+  },
+  "homepage": "https://github.com/GusGold/FreeNASTempsGUI#readme",
+  "repository": {
+		"type": "git",
+		"url": "https://github.com/GusGold/FreeNASTempsGUI.git"
+	},
+}
