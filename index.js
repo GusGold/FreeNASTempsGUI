@@ -33,6 +33,6 @@ try{
     }
   });
 } catch(e){
-  console.error('Exception caught: ' + JSON.stringify(e));
+  console.error('Exception caught: ' + e);
   process.exit(2);
 }

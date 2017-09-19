@@ -9,15 +9,18 @@
   "author": "Angus Goldman <me@angusgoldman.com>",
   "license": "MIT",
   "dependencies": {
+    "cheerio": "^1.0.0-rc.2",
     "command-line-args": "^4.0.7",
+    "jsdom": "^11.2.0",
+    "jsesc": "^2.5.1",
     "nginx-conf": "^1.3.1"
   },
-  "bugs":{
+  "bugs": {
     "url": "https://github.com/GusGold/FreeNASTempsGUI/issues"
   },
   "homepage": "https://github.com/GusGold/FreeNASTempsGUI#readme",
   "repository": {
-		"type": "git",
-		"url": "https://github.com/GusGold/FreeNASTempsGUI.git"
-	},
+    "type": "git",
+    "url": "https://github.com/GusGold/FreeNASTempsGUI.git"
+  }
 }
