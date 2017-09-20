@@ -14,7 +14,7 @@ chmod o+rw $FREENASUIJAIL;
 jexec $JAIL node $JAILSCRIPT;
 ECODE=$?
 if [ $ECODE -eq 0 ]; then
-  cp $NGINXJAIL $NGINX && cp $FREENASUIJAIL $FREENASUI && rm $NGINXJAIL && service nginx restart
+  cp $NGINXJAIL $NGINX && cp $FREENASUIJAIL $FREENASUI && rm $NGINXJAIL && rm $FREENASUIJAIL && service nginx restart
   exit $?;
 elif [ $ECODE -eq 1 ]; then
   echo "No need to update";
