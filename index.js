@@ -55,7 +55,7 @@ try{
     if(options.verbose) console.log('Read NGINX Conf');
 
     let needsLocation = true;
-    let server = conf.nginx.http.server[0];
+    let server = conf.nginx.http.server[0] || config.nginx.http.server;
     if(server !== undefined){
       if(options.verbose) console.log('Searching for Location');
       for(let i = 0; i < server.location.length; i++){
