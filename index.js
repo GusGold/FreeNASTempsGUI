@@ -1,76 +1,118 @@
-const NginxConfFile = require('nginx-conf').NginxConfFile;
-const commandLineArgs = require('command-line-args');
-const jsesc = require('jsesc');
-const fs = require('fs');
+const NginxConfFile = require('nginx-conf').NginxConfFile
+const path = require('path')
+const commandLineArgs = require('command-line-args')
+const jsesc = require('jsesc')
+const fs = require('fs')
 
 const options = commandLineArgs([
-  { name: 'confPath', alias: 'c', type: String, defaultValue: __dirname + '/nginx.conf'}, //path of nginx.conf file to be updated
-  { name: 'dojoPath', alias: 'd', type: String, defaultValue: __dirname + '/index.html'}, //path of GUI template file to be updated
-  { name: 'tempPath', alias: 't', type: String, defaultValue: '/temps'}, //nginx path for temps. i.e. freenas.local/temp
-  { name: 'tempAlias', alias: 'a', type: String, defaultValue: '/mnt/Ocean0/Misc/temperature-monitoring'} //alias path that the temps images are in
-]);
+  {name: 'confPath', alias: 'c', type: String, defaultValue: path.join(__dirname, '/nginx.conf')}, // path of nginx.conf file to be updated
+  {name: 'dojoPath', alias: 'd', type: String, defaultValue: path.join(__dirname, '/index.html')}, // path of GUI template file to be updated
+  {name: 'tempPath', alias: 't', type: String, defaultValue: '/temps'}, // nginx path for temps. i.e. freenas.local/temp
+  {name: 'tempAlias', alias: 'a', type: String, defaultValue: '/mnt/Ocean0/Misc/temperature-monitoring'}, // alias path that the temps images are in
+  {name: 'verbose', alias: 'v', type: Boolean, defaultValue: false} // Enables verbose logging/debugging
+])
 
-let needsUpdating = false;
+var verbose = (message) => {
+  if (options.verbose) console.log(message)
+}
 
-try{
-  //UI
-  let data = fs.readFileSync(options.dojoPath);
-  if(!data){
-    console.error('Error loading GUI html');
-    process.exit(2);
+let needsUpdating = false
+
+var finish = () => {
+  if (!needsUpdating) {
+    verbose('Finished: doesn\'t need updating')
+    process.exit(1)
   } else {
-    let uiTemplate = data.toString();
-    let tempsRE = new RegExp('href: \'' + jsesc(options.tempPath) + '\',', 'g');
+    verbose('Finished: needs updating')
+    process.exit(0)
+  }
+}
 
-    if(uiTemplate.match(tempsRE)){
-      console.log('Header already set in template');
+verbose('Started')
+
+try {
+  // UI
+  verbose('Reading GUI template')
+  let data = fs.readFileSync(options.dojoPath)
+  if (!data) {
+    console.error('Error loading GUI html')
+    process.exit(2)
+  } else {
+    verbose('Read GUI')
+    let uiTemplate = data.toString()
+    let tempsRE = new RegExp('href: \'' + jsesc(options.tempPath) + '\',', 'g')
+
+    if (uiTemplate.match(tempsRE)) {
+      verbose('GUI already has the header in it')
     } else {
-      console.log('Adding to UI Template');
-      let outerDivRE = new RegExp(/^<\/div>/m);
-      output = uiTemplate.replace(outerDivRE, `  <div data-dojo-type="dijit.layout.ContentPane" data-dojo-props="title: '{% trans "Temperature" %}', href: '` + options.tempPath + `', refreshOnShow: true"></div>\n\n</div>\n`);
-      fs.writeFileSync(options.dojoPath, output);
-      needsUpdating = true;
+      verbose('GUI doesn\'t have the header in it')
+      let outerDivRE = new RegExp(/^<\/div>/m)
+      var output = uiTemplate.replace(outerDivRE, `  <div data-dojo-type="dijit.layout.ContentPane" data-dojo-props="title: '{% trans "Temperature" %}', href: '` + options.tempPath + `', refreshOnShow: true"></div>\n\n</div>\n`)
+      verbose('Header added to GUI')
+      fs.writeFileSync(options.dojoPath, output)
+      verbose('Wrote GUI out')
+      needsUpdating = true
     }
   }
 
-  //NGINX
-  NginxConfFile.create(options.confPath, function(err, conf){
-    if(err){
-      console.error('Error reading in conf file: ' + err);
-      process.exit(2);
+  // NGINX
+  verbose('Reading NGINX Conf')
+  NginxConfFile.create(options.confPath, function (err, conf) {
+    conf.on('flushed', function () {
+      verbose('NGINX Conf flushed')
+    })
+    if (err) {
+      console.error('Error reading in conf file: ' + err)
+      process.exit(2)
     }
+    verbose('Read NGINX Conf')
 
-    let needsLocation = true;
-    let server = conf.nginx.http.server[0];
-    if(server !== undefined){
-      for(let i = 0; i < server.location.length; i++){
-        let location = server.location[i];
-        if(location._value === options.tempPath){
-          console.log('Location already exists');
-          conf.die(options.confPath);
-          needsLocation = false;
-          break;
+    let needsLocation = true
+    let server = conf.nginx.http.server[0] || conf.nginx.http.server
+    if (server !== undefined) {
+      verbose('Searching for Location')
+      if (server.location !== undefined) {
+        for (let i = 0; i < server.location.length; i++) {
+          let location = server.location[i]
+          if (location._value === options.tempPath) {
+            verbose('Location already exists')
+            conf.die(options.confPath)
+            needsLocation = false
+            break
+          }
         }
+      } else {
+        verbose('No locations in server')
+        needsLocation = true
       }
 
-      if(needsLocation){
-        console.log('Adding location to Nginx')
-        let locationIndex = server.location.length;
-        server._add('location', options.tempPath);
-        let location = server.location[locationIndex];
-        location._add('alias', options.tempAlias);
-        location._comments.push('Auto generated by injectTempGUI');
+      if (needsLocation) {
+        verbose('Adding location to NGINX')
+        server._add('location', options.tempPath)
+        let location
+        if (server.location.length) {
+          location = server.location[server.location.length - 1]
+        } else {
+          location = server.location
+        }
 
-        conf.flush();
-        needsUpdating = true;
+        location._add('alias', options.tempAlias)
+        location._comments.push('Auto generated by injectTempGUI')
+        conf.flush()
+        needsUpdating = true
+        verbose('Wrote NGINX out')
+        conf.on('flushed', () => {
+          verbose('Flushed')
+          finish()
+        })
       }
     }
 
-    if(!needsUpdating){
-      process.exit(1);
+    if (!needsLocation) {
+      finish()
     }
-  });
-} catch(e){
-  console.error('Exception caught: ' + e);
-  process.exit(2);
+  })
+} catch (e) {
+  console.error('Exception caught: ' + e)
+  process.exit(2)
 }
